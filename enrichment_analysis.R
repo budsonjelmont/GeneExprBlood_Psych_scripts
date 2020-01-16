@@ -15,15 +15,18 @@ celltype = read_xlsx('Cell_type_fordalila.xlsx', sheet=3)
 background = read_xlsx('Cell_type_fordalila.xlsx', sheet=4)
 
 lake = transpose(read.table('gene sets/list_celltypes_lake.txt', fill=TRUE,sep='\t',col.names = paste0("V",seq_len(841))))
-galatro = transpose(read.table('gene sets/list_celltypes_galatro2017-1296g_microglia.txt', fill=TRUE,sep='\t'))
+galatro = read.table('gene sets/list_celltypes_galatro2017-1296g_microglia_full.csv', fill=TRUE,sep=',')
+zuolin = transpose(read.table('gene sets/list_celltypes_zuolin-mouse-microglia.txt', fill=TRUE,sep='\t'))
+
+galatro[,1] = as.character(galatro[,1])
 
 setnames(lake,unlist(lake[1,]))
 setnames(galatro,unlist(galatro[1,]))
+setnames(zuolin,unlist(zuolin[1,]))
 
 lake = lake[-1,]
-darmanislake = darmanislake[-1,]
-velmesh = velmesh[-1,]
-galatro = galatro[-1,]
+galatro = galatro[-1,,drop=F]
+zuolin = zuolin[-1,]
 
 ## Part A. Cell Type enrichments
 enrichmentCellType = data.frame()
@@ -45,7 +48,13 @@ for(i in genelists) {
   for(c in colnames(galatro)) {
     f = as.numeric(ORA(genes, galatro[,c], background$'genesymbol_cortex&blood>=0.5', background$'genesymbol_cortex&blood>=0.5','greater'))
     enrichmentCellType = rbind(enrichmentCellType, 
-                               data.frame(GeneList=i,Dataset="galatro", CellType=c, OR=f[[1]], p=f[[2]]))
+                               data.frame(GeneList=i,Dataset="Galatro", CellType=c, OR=f[[1]], p=f[[2]]))
+  }
+  # Zuolin
+  for(c in colnames(zuolin)) {
+    f = as.numeric(ORA(genes, zuolin[,c], background$'genesymbol_cortex&blood>=0.5', background$'genesymbol_cortex&blood>=0.5','greater'))
+    enrichmentCellType = rbind(enrichmentCellType, 
+                               data.frame(GeneList=i,Dataset="Zuolin", CellType=c, OR=f[[1]], p=f[[2]]))
   }
 }
 
@@ -72,7 +81,7 @@ enrichmentCellType$text[enrichmentCellType$fdr < 0.05] = as.character(signif(enr
 # See significant rows @ FDR <.05
 enrichmentCellType[enrichmentCellType$fdr<0.05,]
 
-write.table(enrichmentCellType,'CellType_enrichmentResults_LakeGalatroOnly_FDRcorrectByGeneList.csv',sep=',',quote=F,row.names=T)
+write.table(enrichmentCellType,'CellType_enrichmentResults_LakeGalatroZuolin_FDRcorrectByGeneList.csv',sep=',',quote=F,row.names=T)
 
 ## Part B. Tissue enrichments
 enrichmentGeneSets = data.frame()
@@ -117,13 +126,13 @@ enrichmentGeneSets$text[enrichmentGeneSets$fdr < 0.05] = as.character(signif(enr
 write.table(enrichmentGeneSets,'GeneSet_enrichmentResults_FDRcorrectAll.csv',sep=',',quote=F,row.names=T)
 
 ## Part C. Make plots
-# Cell type enrichments
+# Cell type enrichments (Lake)
 enrichmentCellType_lake = enrichmentCellType[enrichmentCellType$Dataset=='Lake',]
 
 g = ggplot(enrichmentCellType_lake, aes(x=CellType,y=GeneList, label=text)) +
   geom_tile(aes(fill=log10fdr),color="grey60") + 
   coord_fixed(ratio=2.5) +
-  scale_fill_gradient(low = "white", high = "red","-log10 FDR", limits = c(0,3)) + 
+  scale_fill_gradient(low = "white", high = "red","-log10 FDR", limits = c(0,8)) + 
   geom_text(size=3, color="black") + 
   ylab("") + 
   xlab("") + 
@@ -139,6 +148,52 @@ g = ggplot(enrichmentCellType_lake, aes(x=CellType,y=GeneList, label=text)) +
 aspect_ratio = 1.8
 height = 7
 ggsave('cellTypeEnrichment_Lake.pdf',plot=g,height=height, width=height*aspect_ratio)
+
+# Cell type enrichments (Galatro)
+enrichmentCellType_galatro = enrichmentCellType[enrichmentCellType$Dataset=='Galatro',]
+
+g = ggplot(enrichmentCellType_galatro, aes(x=GeneList,y=CellType, label=text)) +
+  geom_tile(aes(fill=log10fdr),color="grey60") + 
+  coord_fixed(ratio=2.5) +
+  scale_fill_gradient(low = "white", high = "red","-log10 FDR", limits = c(0,8)) + 
+  geom_text(size=3, color="black") + 
+  ylab("") + 
+  xlab("") + 
+  theme(
+    #plot.margin = margin(1,.8,1,.8, "cm"),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.x = element_text(angle=45, hjust=1), 
+    panel.background = element_blank(),
+    plot.background = element_blank()
+  )
+
+aspect_ratio = 1.8
+height = 7
+ggsave('cellTypeEnrichment_Galatro.pdf',plot=g,height=height, width=height*aspect_ratio)
+
+# Cell type enrichments (Zuolin)
+enrichmentCellType_zuolin = enrichmentCellType[enrichmentCellType$Dataset=='Zuolin',]
+
+g = ggplot(enrichmentCellType_zuolin, aes(x=CellType,y=GeneList, label=text)) +
+  geom_tile(aes(fill=log10fdr),color="grey60") + 
+  coord_fixed(ratio=2.5) +
+  scale_fill_gradient(low = "white", high = "red","-log10 FDR", limits = c(0,8)) + 
+  geom_text(size=3, color="black") + 
+  ylab("") + 
+  xlab("") + 
+  theme(
+    #plot.margin = margin(1,.8,1,.8, "cm"),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.x = element_text(angle=45, hjust=1), 
+    panel.background = element_blank(),
+    plot.background = element_blank()
+  )
+
+aspect_ratio = 1.8
+height = 7
+ggsave('cellTypeEnrichment_Zuolin.pdf',plot=g,height=height, width=height*aspect_ratio)
 
 #Cell-Type enrichment
 #g5=ggplot(enrichmentCellType[enrichmentCellType$Module==moduleColor,],aes(x=CellType,y=log10fdr, fill=Dataset)) + geom_bar(stat="identity") + coord_flip() + geom_hline(yintercept = -log10(0.05),lty=2) + xlab("") + ggtitle("Cell-Type Enrichment") +theme(axis.text.y = element_text(size=6))
